@@ -11,6 +11,48 @@ fn parse_duration() {
     }
 }
 
+#[test]
+fn to_string() {
+    let test_vector: Vec<(&str, Duration)> = vec![
+        ("0s", 0),
+        ("1ns", 1 * NANOSECOND),
+        ("1.1µs", 1100 * NANOSECOND),
+        ("2.2ms", 2200 * MICROSECOND),
+        ("3.3s", 3300 * MILLISECOND),
+        ("4m5s", 4 * MINUTE + 5 * SECOND),
+        ("4m5.001s", 4 * MINUTE + 5001 * MILLISECOND),
+        ("5h6m7.001s", 5 * HOUR + 6 * MINUTE + 7001 * MILLISECOND),
+        ("8m0.000000001s", 8 * MINUTE + 1 * NANOSECOND),
+        ("2562047h47m16.854775807s", i64::MAX),
+        ("-2562047h47m16.854775808s", i64::MIN),
+    ]
+    .into_iter()
+    .map(|(s, d)| (s, d.into()))
+    .collect();
+
+    for (i, (expect, d)) in test_vector.into_iter().enumerate() {
+        assert_eq!(
+            expect,
+            d.to_string(),
+            "#{} Duration({}).to_string()",
+            i,
+            d.0
+        );
+
+        if d.0 > 0 {
+            let expect = format!("-{expect}");
+            let d = Duration(-d.0);
+            assert_eq!(
+                expect,
+                d.to_string(),
+                "#{} Duration({}).to_string()",
+                i,
+                -d.0
+            );
+        }
+    }
+}
+
 lazy_static::lazy_static! {
   static ref PARSE_TESTS: Vec<ParseTest> = vec![
     // simple
@@ -70,6 +112,8 @@ lazy_static::lazy_static! {
     // This value tests the first overflow check in leadingFraction.
     ("0.830103483285477580700h", 49*MINUTE + 48*SECOND + 372539827*NANOSECOND),
   ].into_iter().map(|v| ParseTest::new(v.0,v.1)).collect();
+
+
 }
 
 struct ParseTest {

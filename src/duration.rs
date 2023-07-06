@@ -6,9 +6,6 @@ use std::{ops::Mul, str::FromStr};
 
 use lazy_static::lazy_static;
 
-#[derive(Clone, Copy, PartialEq, Debug)]
-pub struct Duration(i64);
-
 pub const NANOSECOND: Duration = Duration(1);
 pub const MICROSECOND: Duration = Duration(1_000);
 pub const MILLISECOND: Duration = Duration(1_000_000);
@@ -16,21 +13,13 @@ pub const SECOND: Duration = Duration(1_000_000_000);
 pub const MINUTE: Duration = Duration(60_000_000_000);
 pub const HOUR: Duration = Duration(3_600_000_000_000);
 
-lazy_static! {
-    pub(crate) static ref UNIT_MAP: HashMap<&'static str, u64> = {
-        let mut m = HashMap::new();
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub struct Duration(pub i64);
 
-        m.insert("ns", NANOSECOND.0 as u64);
-        m.insert("us", MICROSECOND.0 as u64);
-        m.insert("µs", MICROSECOND.0 as u64); // \u{00b5}
-        m.insert("μs", MICROSECOND.0 as u64); // \u{03bc}
-        m.insert("ms", MILLISECOND.0 as u64);
-        m.insert("s", SECOND.0 as u64);
-        m.insert("m", MINUTE.0 as u64);
-        m.insert("h", HOUR.0 as u64);
-
-        m
-    };
+impl Duration {
+    pub fn string(&self) -> String {
+        self.to_string()
+    }
 }
 
 impl Add for Duration {
@@ -44,6 +33,10 @@ impl Add for Duration {
 impl Display for Duration {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // Largest time is 2540400h10m10.000000000s
+        if self.0 == i64::MIN {
+            return write!(f, "-2562047h47m16.854775808s");
+        }
+
         let mut buf = [0u8; 32];
         let mut w = buf.len();
 
@@ -64,7 +57,7 @@ impl Display for Duration {
                 0
             } else if u < MILLISECOND.0 as u64 {
                 w -= 1;
-                buf[w..(w + 2)].copy_from_slice(b"\x00\xB5");
+                buf[w..(w + 2)].copy_from_slice(b"\xc2\xb5");
                 3
             } else {
                 buf[w] = b'm';
@@ -86,12 +79,15 @@ impl Display for Duration {
             w = fmt_int(&mut buf[..w], u % 60);
             u /= 60;
 
+            // u is now integer minutes
             if u > 0 {
                 w -= 1;
                 buf[w] = b'm';
                 w = fmt_int(&mut buf[..w], u % 60);
                 u /= 60;
 
+                // u is now integer hours
+                // Stop at hours because days can be different lengths.
                 if u > 0 {
                     w -= 1;
                     buf[w] = b'h';
@@ -105,7 +101,7 @@ impl Display for Duration {
             buf[w] = b'-';
         }
 
-        let out = unsafe { str::from_utf8_unchecked(&buf) };
+        let out = unsafe { str::from_utf8_unchecked(&buf[w..]) };
         write!(f, "{out}")
     }
 }
@@ -117,7 +113,7 @@ where
     type Output = Self;
 
     fn mul(self, rhs: D) -> Self::Output {
-        Self(self.0 + rhs.into().0)
+        Self(self.0 * rhs.into().0)
     }
 }
 
@@ -261,6 +257,23 @@ impl FromStr for Duration {
     }
 }
 
+lazy_static! {
+    pub(crate) static ref UNIT_MAP: HashMap<&'static str, u64> = {
+        let mut m = HashMap::new();
+
+        m.insert("ns", NANOSECOND.0 as u64);
+        m.insert("us", MICROSECOND.0 as u64);
+        m.insert("µs", MICROSECOND.0 as u64); // \u{00b5}
+        m.insert("μs", MICROSECOND.0 as u64); // \u{03bc}
+        m.insert("ms", MILLISECOND.0 as u64);
+        m.insert("s", SECOND.0 as u64);
+        m.insert("m", MINUTE.0 as u64);
+        m.insert("h", HOUR.0 as u64);
+
+        m
+    };
+}
+
 // private APIs
 //const LOWER_HEX: &'static str = "0123456789abcdef";
 const RUNE_SELF: char = 0x80 as char;
@@ -268,6 +281,10 @@ const RUNE_SELF: char = 0x80 as char;
 
 const ERR_LEADING_INT: &'static str = "time: bad [0-9]*";
 
+/// Formats the fraction of v/10**prec (e.g., ".12345") into the
+/// tail of buf, omitting trailing zeros. It omits the decimal
+/// point too when the fraction is 0. It returns the index where the
+/// output bytes begin and the value v/10**prec.
 fn fmt_frac(buf: &mut [u8], v: u64, prec: i32) -> (usize, u64) {
     let mut w = buf.len();
     let mut print = false;
@@ -294,7 +311,7 @@ fn fmt_int(buf: &mut [u8], v: u64) -> usize {
     let mut w = buf.len();
     if v == 0 {
         w -= 1;
-        buf[w] = 0;
+        buf[w] = b'0';
     } else {
         let mut v = v;
         while v > 0 {
