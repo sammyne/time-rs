@@ -17,6 +17,17 @@ pub const HOUR: Duration = Duration(3_600_000_000_000);
 pub struct Duration(pub i64);
 
 impl Duration {
+    pub fn nanoseconds(&self) -> i64 {
+        self.0
+    }
+
+    pub fn seconds(&self) -> f64 {
+        let s = self.0 / SECOND.0;
+        let ns = self.0 % SECOND.0;
+
+        (s as f64) + (ns as f64) / 1e9
+    }
+
     pub fn string(&self) -> String {
         self.to_string()
     }
