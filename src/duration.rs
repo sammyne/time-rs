@@ -1,11 +1,25 @@
 use std::collections::HashMap;
 use std::fmt::Display;
-use std::ops::Add;
+use std::ops::{Add, Div};
 use std::str;
 use std::{ops::Mul, str::FromStr};
 
 use lazy_static::lazy_static;
 
+/// Common durations. There is no definition for units of Day or larger
+/// to avoid confusion across daylight savings time zone transitions.
+///
+/// To count the number of units in a Duration, divide:
+///
+/// ```
+#[doc = include_str!("../examples/duration_count_units.rs")]
+/// ```
+///
+/// To convert an integer number of units to a Duration, multiply:
+///
+/// ```
+#[doc = include_str!("../examples/duration_from_i64.rs")]
+/// ```
 pub const NANOSECOND: Duration = Duration(1);
 pub const MICROSECOND: Duration = Duration(1_000);
 pub const MILLISECOND: Duration = Duration(1_000_000);
@@ -13,6 +27,9 @@ pub const SECOND: Duration = Duration(1_000_000_000);
 pub const MINUTE: Duration = Duration(60_000_000_000);
 pub const HOUR: Duration = Duration(3_600_000_000_000);
 
+/// A Duration represents the elapsed time between two instants
+/// as an int64 nanosecond count. The representation limits the
+/// largest representable duration to approximately 290 years.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Duration(pub i64);
 
@@ -114,6 +131,17 @@ impl Display for Duration {
 
         let out = unsafe { str::from_utf8_unchecked(&buf[w..]) };
         write!(f, "{out}")
+    }
+}
+
+impl<D> Div<D> for Duration
+where
+    D: Into<Duration>,
+{
+    type Output = i64;
+
+    fn div(self, rhs: D) -> Self::Output {
+        self.0 / rhs.into().0
     }
 }
 
