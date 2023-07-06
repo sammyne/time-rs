@@ -1,6 +1,20 @@
 use time::{Duration, HOUR, MICROSECOND, MILLISECOND, MINUTE, NANOSECOND, SECOND};
 
 #[test]
+fn nanoseconds() {
+    let test_vector = vec![
+        (Duration(-1000), -1000),
+        (Duration(-1), -1),
+        (Duration(1), 1),
+        (Duration(1000), 1000),
+    ];
+
+    for (i, (c, expect)) in test_vector.into_iter().enumerate() {
+        assert_eq!(expect, c.nanoseconds(), "#{i}");
+    }
+}
+
+#[test]
 fn parse_duration() {
     for (i, c) in PARSE_TESTS.iter().enumerate() {
         let got: Duration = c
@@ -8,6 +22,15 @@ fn parse_duration() {
             .parse()
             .expect(&format!("#{} parse '{}'", i, c.input));
         assert_eq!(c.want, got, "#{} parse '{}'", i, c.input);
+    }
+}
+
+#[test]
+fn seconds() {
+    let test_vector = vec![(Duration(300000000), 0.3)];
+
+    for (i, (c, expect)) in test_vector.into_iter().enumerate() {
+        assert_eq!(expect, c.seconds(), "#{i}");
     }
 }
 
