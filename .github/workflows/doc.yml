@@ -1,0 +1,48 @@
+# ref: https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#running-your-workflow-when-a-pull-request-merges
+name: doc
+
+on:
+  pull_request:
+    branches: [ 'main' ]
+    types:
+    - closed
+
+jobs:
+  docify:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    container: 
+      image: rust:1.65.0-bullseye
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        persist-credentials: false
+    - name: Rust toolchains
+      run: |
+        rustc --version &&
+        rustup --version &&
+        cargo --version
+      shell: bash
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.toml') }}
+    - name: Cache cargo index
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/git
+        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.toml') }}
+    - name: Generate docs
+      run: cargo doc --all-features --no-deps --workspace
+    - name: Install rsync for JamesIves/github-pages-deploy-action@releases/v4
+      run: apt update && apt install -y rsync
+    # https://github.blog/2022-04-12-git-security-vulnerability-announced/#cve-2022-24765
+    - name: Fix git CVE-2022-24765
+      run: git config --global --add safe.directory $GITHUB_WORKSPACE
+    - name: Deploy docs
+      uses: JamesIves/github-pages-deploy-action@releases/v4
+      with:
+        branch: gh-pages
+        folder: target/doc
