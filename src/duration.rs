@@ -48,7 +48,7 @@ pub const HOUR: Duration = Duration(3_600_000_000_000);
 /// ```
 #[doc = include_str!("../examples/duration_to_string.rs")]
 /// ```
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, Eq)]
 pub struct Duration(pub i64);
 
 impl Duration {
@@ -103,7 +103,7 @@ impl Display for Duration {
         let mut w = buf.len();
 
         let neg = self.0 < 0;
-        let mut u = self.0.abs() as u64;
+        let mut u = self.0.unsigned_abs();
 
         if u < SECOND.0 as u64 {
             // Special case: if duration is smaller than a second,
@@ -371,7 +371,7 @@ lazy_static! {
 const RUNE_SELF: char = 0x80 as char;
 //const RUNE_ERROR: char = '\u{FFFD}';
 
-const ERR_LEADING_INT: &'static str = "time: bad [0-9]*";
+const ERR_LEADING_INT: &str = "time: bad [0-9]*";
 
 /// Formats the fraction of v/10**prec (e.g., ".12345") into the
 /// tail of buf, omitting trailing zeros. It omits the decimal
@@ -422,9 +422,8 @@ fn leading_fraction(s: &[u8]) -> (i64, f64, &[u8]) {
     let mut overflow = false;
     let mut x = 0i64;
 
-    for j in 0..s.len() {
-        let c = s[j];
-        if (c < b'0') || (c > b'9') {
+    for (j, c) in s.iter().enumerate() {
+        if !c.is_ascii_digit() {
             i = j;
             break;
         }
@@ -452,9 +451,8 @@ fn leading_fraction(s: &[u8]) -> (i64, f64, &[u8]) {
 fn leading_int(s: &[u8]) -> Result<(u64, &[u8]), String> {
     let mut i = s.len();
     let mut x = 0u64;
-    for j in 0..s.len() {
-        let c = s[j];
-        if c < b'0' || c > b'9' {
+    for (j, c) in s.iter().enumerate() {
+        if !c.is_ascii_digit() {
             i = j;
             break;
         }
