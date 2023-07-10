@@ -6,38 +6,56 @@ use std::{ops::Mul, str::FromStr};
 
 use lazy_static::lazy_static;
 
-/// Common durations. There is no definition for units of Day or larger
+/// Duration of a nanosecond. There is no definition for units of Day or larger
 /// to avoid confusion across daylight savings time zone transitions.
-///
-/// To count the number of units in a Duration, divide:
-///
-/// ```
-#[doc = include_str!("../examples/duration_count_units.rs")]
-/// ```
-///
-/// To convert an integer number of units to a Duration, multiply:
-///
-/// ```
-#[doc = include_str!("../examples/duration_from_i64.rs")]
-/// ```
 pub const NANOSECOND: Duration = Duration(1);
+/// Duration of a microsecond. There is no definition for units of Day or larger
+/// to avoid confusion across daylight savings time zone transitions.
 pub const MICROSECOND: Duration = Duration(1_000);
+/// duration of a millisecond. There is no definition for units of Day or larger
+/// to avoid confusion across daylight savings time zone transitions.
 pub const MILLISECOND: Duration = Duration(1_000_000);
+/// Duration of a second. There is no definition for units of Day or larger
+/// to avoid confusion across daylight savings time zone transitions.
 pub const SECOND: Duration = Duration(1_000_000_000);
+/// Duration of a minute. There is no definition for units of Day or larger
+/// to avoid confusion across daylight savings time zone transitions.
 pub const MINUTE: Duration = Duration(60_000_000_000);
+/// Duration of an hour. There is no definition for units of Day or larger
+/// to avoid confusion across daylight savings time zone transitions.
 pub const HOUR: Duration = Duration(3_600_000_000_000);
 
 /// A Duration represents the elapsed time between two instants
 /// as an int64 nanosecond count. The representation limits the
 /// largest representable duration to approximately 290 years.
+///
+/// # Example
+/// Count the number of units in a Duration:
+///
+/// ```
+#[doc = include_str!("../examples/duration_count_units.rs")]
+/// ```
+///
+/// Convert an integer number of units to a [Duration]:
+///
+/// ```
+#[doc = include_str!("../examples/duration_from_i64.rs")]
+/// ```
+///
+/// Convert a Duration to a human-readable string.
+/// ```
+#[doc = include_str!("../examples/duration_to_string.rs")]
+/// ```
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Duration(pub i64);
 
 impl Duration {
+    /// Returns the duration as an integer nanosecond count.
     pub fn nanoseconds(&self) -> i64 {
         self.0
     }
 
+    /// Returns the duration as a floating point number of seconds.
     pub fn seconds(&self) -> f64 {
         let s = self.0 / SECOND.0;
         let ns = self.0 % SECOND.0;
@@ -45,6 +63,11 @@ impl Duration {
         (s as f64) + (ns as f64) / 1e9
     }
 
+    /// Returns a string representing the duration in the form `72h3m0.5s`.
+    /// Leading zero units are omitted. As a special case, durations less than one
+    /// second format use a smaller unit (milli-, micro-, or nanoseconds) to ensure
+    /// that the leading digit is non-zero. The zero duration formats as 0s.
+    #[deprecated(since = "0.1.0", note = "use `to_string` instead")]
     pub fn string(&self) -> String {
         self.to_string()
     }
@@ -59,6 +82,15 @@ impl Add for Duration {
 }
 
 impl Display for Duration {
+    /// Writes a string representing the duration in the form "72h3m0.5s" to `f`.
+    /// Leading zero units are omitted. As a special case, durations less than one
+    /// second format use a smaller unit (milli-, micro-, or nanoseconds) to ensure
+    /// that the leading digit is non-zero. The zero duration formats as 0s.
+    ///
+    /// # Example
+    /// ```
+    #[doc = include_str!("../examples/duration_to_string.rs")]
+    /// ```
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // Largest time is 2540400h10m10.000000000s
         if self.0 == i64::MIN {
@@ -81,13 +113,18 @@ impl Display for Duration {
             let prec = if u == 0 {
                 return write!(f, "0s");
             } else if u < MICROSECOND.0 as u64 {
+                // print nanoseconds
                 buf[w] = b'n';
                 0
             } else if u < MILLISECOND.0 as u64 {
+                // print microseconds
+                // U+00B5 'µ' micro sign == 0xC2 0xB5
+                // Need room for two bytes.
                 w -= 1;
                 buf[w..(w + 2)].copy_from_slice(b"\xc2\xb5");
                 3
             } else {
+                // print milliseconds
                 buf[w] = b'm';
                 6
             };
@@ -294,6 +331,25 @@ impl FromStr for Duration {
 
         Ok(Self(d as i64))
     }
+}
+
+/// Parses a duration string.
+/// A duration string is a possibly signed sequence of
+/// decimal numbers, each with optional fraction and a unit suffix,
+/// such as "300ms", "-1.5h" or "2h45m".
+/// Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+///
+/// We can also use [str::parse] instead thanks to [FromStr] implementation of [Duration].
+///
+/// # Example
+/// ```
+#[doc = include_str!("../examples/parse_duration.rs")]
+/// ```
+pub fn parse_duration<S>(s: S) -> Result<Duration, String>
+where
+    S: AsRef<str>,
+{
+    s.as_ref().parse()
 }
 
 lazy_static! {
