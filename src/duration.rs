@@ -6,6 +6,8 @@ use std::{ops::Mul, str::FromStr};
 
 use lazy_static::lazy_static;
 
+use crate::DurationParseError;
+
 /// Duration of a nanosecond. There is no definition for units of Day or larger
 /// to avoid confusion across daylight savings time zone transitions.
 pub const NANOSECOND: Duration = Duration(1);
@@ -208,14 +210,11 @@ impl From<i64> for Duration {
 }
 
 impl FromStr for Duration {
-    type Err = String;
+    type Err = DurationParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let orig = s;
         let mut s = s.as_bytes();
         let mut d = 0u64;
-
-        let err = format!("time: invalid duration {}", quote(orig));
 
         let neg = if s.is_empty() {
             false
@@ -233,7 +232,7 @@ impl FromStr for Duration {
             return Ok(Duration(0));
         }
         if s == b"" {
-            return Err(err.clone());
+            return Err(DurationParseError::Invalid);
         }
 
         while !s.is_empty() {
@@ -241,12 +240,12 @@ impl FromStr for Duration {
             let mut scale = 0f64;
 
             if !((s[0] == b'.') || ((b'0' <= s[0]) && (s[0] <= b'9'))) {
-                return Err(err.clone());
+                return Err(DurationParseError::Invalid);
             }
 
             let pl = s.len();
             let mut v = {
-                let (vv, ss) = leading_int(s).map_err(|_| err.clone())?;
+                let (vv, ss) = leading_int(s).map_err(|_| DurationParseError::Invalid)?;
                 s = ss;
                 vv
             };
@@ -267,7 +266,7 @@ impl FromStr for Duration {
             };
 
             if !pre && !post {
-                return Err(err.clone());
+                return Err(DurationParseError::Invalid);
             }
 
             // consume unit
@@ -284,7 +283,7 @@ impl FromStr for Duration {
                 i += 1;
             }
             if i == 0 {
-                return Err(format!("time: miss unit in duration {}", quote(orig)));
+                return Err(DurationParseError::MissUnit);
             }
             let u = str::from_utf8(&s[..i]).expect("no UTF-8 unit");
             s = &s[i..];
@@ -292,27 +291,25 @@ impl FromStr for Duration {
             let unit = if let Some(v) = UNIT_MAP.get(u) {
                 *v
             } else {
-                return Err(format!(
-                    "time: unknown unit {} in duration {}",
-                    quote(u),
-                    quote(orig)
-                ));
+                return Err(DurationParseError::UnknownUnit {
+                    unit: u.to_string(),
+                });
             };
             if v > (i64::MIN as u64) / unit {
                 // overflow
-                return Err(format!("time: invalid duration {}", quote(orig)));
+                return Err(DurationParseError::Invalid);
             }
 
             v *= unit;
             if f > 0 {
                 v += ((f as f64) * (unit as f64 / scale)) as u64;
                 if v > (i64::MIN as u64) {
-                    return Err(err.clone());
+                    return Err(DurationParseError::Invalid);
                 }
             }
             d += v;
             if d > (i64::MIN as u64) {
-                return Err(err.clone());
+                return Err(DurationParseError::Invalid);
             }
         }
 
@@ -326,7 +323,7 @@ impl FromStr for Duration {
         }
 
         if d > (i64::MAX as u64) {
-            return Err(err);
+            return Err(DurationParseError::Invalid);
         }
 
         Ok(Self(d as i64))
@@ -345,7 +342,7 @@ impl FromStr for Duration {
 /// ```
 #[doc = include_str!("../examples/parse_duration.rs")]
 /// ```
-pub fn parse_duration<S>(s: S) -> Result<Duration, String>
+pub fn parse_duration<S>(s: S) -> Result<Duration, DurationParseError>
 where
     S: AsRef<str>,
 {
