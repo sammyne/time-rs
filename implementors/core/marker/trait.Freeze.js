@@ -1,0 +1,3 @@
+(function() {var implementors = {
+"time":[["impl Freeze for <a class=\"struct\" href=\"time/struct.Duration.html\" title=\"struct time::Duration\">Duration</a>",1,["time::duration::Duration"]],["impl Freeze for <a class=\"enum\" href=\"time/enum.DurationParseError.html\" title=\"enum time::DurationParseError\">DurationParseError</a>",1,["time::errors::DurationParseError"]]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
