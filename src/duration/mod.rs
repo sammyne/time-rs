@@ -35,23 +35,35 @@ pub const HOUR: Duration = Duration(3_600_000_000_000);
 /// Count the number of units in a Duration:
 ///
 /// ```
-#[doc = include_str!("../examples/duration_count_units.rs")]
+#[doc = include_str!("../../examples/duration_count_units.rs")]
 /// ```
 ///
 /// Convert an integer number of units to a [Duration]:
 ///
 /// ```
-#[doc = include_str!("../examples/duration_from_i64.rs")]
+#[doc = include_str!("../../examples/duration_from_i64.rs")]
 /// ```
 ///
 /// Convert a Duration to a human-readable string.
 /// ```
-#[doc = include_str!("../examples/duration_to_string.rs")]
+#[doc = include_str!("../../examples/duration_to_string.rs")]
 /// ```
 #[derive(Clone, Copy, PartialEq, Debug, Eq)]
 pub struct Duration(pub i64);
 
 impl Duration {
+    /// Returns the absolute value of `self`.
+    /// As a special case, i64::MIN is converted to i64::MAX.
+    pub fn abs(&self) -> Self {
+        if self.0 >= 0 {
+            *self
+        } else if self == &MIN_DURATION {
+            MAX_DURATION
+        } else {
+            Self(-self.0)
+        }
+    }
+
     /// Returns the duration as an integer nanosecond count.
     pub fn nanoseconds(&self) -> i64 {
         self.0
@@ -91,7 +103,7 @@ impl Display for Duration {
     ///
     /// # Example
     /// ```
-    #[doc = include_str!("../examples/duration_to_string.rs")]
+    #[doc = include_str!("../../examples/duration_to_string.rs")]
     /// ```
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // Largest time is 2540400h10m10.000000000s
@@ -340,7 +352,7 @@ impl FromStr for Duration {
 ///
 /// # Example
 /// ```
-#[doc = include_str!("../examples/parse_duration.rs")]
+#[doc = include_str!("../../examples/parse_duration.rs")]
 /// ```
 pub fn parse_duration<S>(s: S) -> Result<Duration, DurationParseError>
 where
@@ -372,6 +384,10 @@ const RUNE_SELF: char = 0x80 as char;
 //const RUNE_ERROR: char = '\u{FFFD}';
 
 const ERR_LEADING_INT: &str = "time: bad [0-9]*";
+
+const MAX_DURATION: Duration = Duration(i64::MAX);
+
+const MIN_DURATION: Duration = Duration(i64::MIN);
 
 /// Formats the fraction of v/10**prec (e.g., ".12345") into the
 /// tail of buf, omitting trailing zeros. It omits the decimal
@@ -497,3 +513,6 @@ where
 
     buf
 }
+
+#[cfg(test)]
+mod tests;
