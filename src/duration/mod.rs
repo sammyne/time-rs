@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::Display;
-use std::ops::{Add, Div};
+use std::ops::{Add, Div, Neg, Sub};
 use std::str;
 use std::{ops::Mul, str::FromStr};
 
@@ -118,6 +118,50 @@ impl Duration {
         let nsec = self.0 % MINUTE.0;
 
         (m as f64) + (nsec as f64) / (60.0 * 1e9)
+    }
+
+    /// Returns the result of rounding `self` to the nearest multiple of `m`.
+    /// The rounding behavior for halfway values is to round away from zero.
+    /// If the result exceeds the maximum (or minimum)
+    /// value that can be stored in a Duration,
+    /// Round returns the maximum (or minimum) duration.
+    /// If m <= 0, `round` returns `self` unchanged.
+    ///
+    /// # Example
+    /// ```
+    #[doc = include_str!("../../examples/duration_round.rs")]
+    /// ```
+    pub fn round(&self, m: Self) -> Self {
+        let (d, m) = (self.0, m.0);
+
+        if m <= 0 {
+            return *self;
+        }
+
+        let mut r = d % m;
+        if d < 0 {
+            r = -r;
+
+            if less_than_half(r, m) {
+                return Self(d + r);
+            }
+
+            if let Some(d1) = (d + r).checked_sub(m) {
+                return Self(d1);
+            }
+
+            return MIN_DURATION; // overflow
+        }
+
+        if less_than_half(r, m) {
+            return Self(d - r);
+        }
+
+        if let Some(d1) = (d - r).checked_add(m) {
+            return Self(d1);
+        }
+
+        MAX_DURATION
     }
 
     /// Returns the duration as a floating point number of seconds.
@@ -263,10 +307,29 @@ where
 }
 
 impl Mul<Duration> for i64 {
-    type Output = i64;
+    type Output = Duration;
 
     fn mul(self, rhs: Duration) -> Self::Output {
-        self * rhs.0
+        Duration(self * rhs.0)
+    }
+}
+
+impl Neg for Duration {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        match self {
+            MIN_DURATION => MIN_DURATION,
+            _ => Self(-self.0),
+        }
+    }
+}
+
+impl Sub<Duration> for Duration {
+    type Output = Self;
+
+    fn sub(self, rhs: Duration) -> Self::Output {
+        Self(self.0 - rhs.0)
     }
 }
 
@@ -541,6 +604,10 @@ fn leading_int(s: &[u8]) -> Result<(u64, &[u8]), String> {
     }
 
     Ok((x, &s[i..]))
+}
+
+fn less_than_half(x: i64, y: i64) -> bool {
+    ((x as u64) << 1) < (y as u64)
 }
 
 pub(crate) fn quote<S>(s: S) -> String
