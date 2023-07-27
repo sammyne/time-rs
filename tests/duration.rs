@@ -74,6 +74,56 @@ fn parse_duration() {
 }
 
 #[test]
+fn round() {
+    struct Case {
+        d: Duration,
+        m: Duration,
+        want: Duration,
+    }
+
+    let test_vector = vec![
+        (0.into(), SECOND, 0.into()),
+        (MINUTE, -11i64 * SECOND, MINUTE),
+        (MINUTE, 0.into(), MINUTE),
+        (MINUTE, 1.into(), MINUTE),
+        (2i64 * MINUTE, MINUTE, 2 * MINUTE),
+        (2 * MINUTE + 10 * SECOND, MINUTE, 2 * MINUTE),
+        (2 * MINUTE + 30 * SECOND, MINUTE, 3 * MINUTE),
+        (2 * MINUTE + 50 * SECOND, MINUTE, 3 * MINUTE),
+        (-MINUTE, 1.into(), -MINUTE),
+        (-2 * MINUTE, MINUTE, -2 * MINUTE),
+        (-2 * MINUTE - 10 * SECOND, MINUTE, -2 * MINUTE),
+        (-2 * MINUTE - 30 * SECOND, MINUTE, -3 * MINUTE),
+        (-2 * MINUTE - 50 * SECOND, MINUTE, -3 * MINUTE),
+        (
+            (8e18 as i64).into(),
+            (3e18 as i64).into(),
+            (9e18 as i64).into(),
+        ),
+        ((9e18 as i64).into(), (5e18 as i64).into(), i64::MAX.into()),
+        (
+            (-8e18 as i64).into(),
+            (3e18 as i64).into(),
+            (-9e18 as i64).into(),
+        ),
+        (
+            (-9e18 as i64).into(),
+            (5e18 as i64).into(),
+            (-1 << 63).into(),
+        ),
+        (((3 << 61) - 1).into(), (3 << 61).into(), (3 << 61).into()),
+    ]
+    .into_iter()
+    .map(|(d, m, want)| Case { d, m, want });
+
+    for (i, Case { d, m, want }) in test_vector.enumerate() {
+        println!("i={i}, d={}, m={}", d.0, m.0);
+        let got = d.round(m);
+        assert_eq!(want, got, "#{i}");
+    }
+}
+
+#[test]
 fn seconds() {
     let test_vector = vec![(Duration(300000000), 0.3)];
 
@@ -85,7 +135,7 @@ fn seconds() {
 #[test]
 fn to_string() {
     let test_vector: Vec<(&str, Duration)> = vec![
-        ("0s", 0),
+        ("0s", 0.into()),
         ("1ns", 1 * NANOSECOND),
         ("1.1µs", 1100 * NANOSECOND),
         ("2.2ms", 2200 * MICROSECOND),
@@ -94,8 +144,8 @@ fn to_string() {
         ("4m5.001s", 4 * MINUTE + 5001 * MILLISECOND),
         ("5h6m7.001s", 5 * HOUR + 6 * MINUTE + 7001 * MILLISECOND),
         ("8m0.000000001s", 8 * MINUTE + 1 * NANOSECOND),
-        ("2562047h47m16.854775807s", i64::MAX),
-        ("-2562047h47m16.854775808s", i64::MIN),
+        ("2562047h47m16.854775807s", i64::MAX.into()),
+        ("-2562047h47m16.854775808s", i64::MIN.into()),
     ]
     .into_iter()
     .map(|(s, d)| (s, d.into()))
@@ -127,15 +177,15 @@ fn to_string() {
 lazy_static::lazy_static! {
   static ref PARSE_TESTS: Vec<ParseTest> = vec![
     // simple
-    ("0", 0),
+    ("0", 0.into()),
     ("5s", 5 * SECOND),
     ("30s", 30 * SECOND),
     ("1478s", 1478 * SECOND),
     // sign
     ("-5s", -5 * SECOND),
     ("+5s", 5 * SECOND),
-    ("-0", 0),
-    ("+0", 0),
+    ("-0", 0.into()),
+    ("+0", 0.into()),
     // decimal
     ("5.0s", 5 * SECOND),
     ("5.6s", 5*SECOND + 600*MILLISECOND),
@@ -172,12 +222,12 @@ lazy_static::lazy_static! {
     ("9223372036854775.807us", i64::MAX * NANOSECOND),
     ("9223372036s854ms775us807ns", i64::MAX * NANOSECOND),
     ("-9223372036854775808ns", i64::MIN * NANOSECOND),
-    ("-9223372036854775.808us", -1 << 63 * NANOSECOND),
-    ("-9223372036s854ms775us808ns", -1 << 63 * NANOSECOND),
+    ("-9223372036854775.808us", (-1 << 63) * NANOSECOND),
+    ("-9223372036s854ms775us808ns", (-1 << 63) * NANOSECOND),
     // largest negative value
-    ("-9223372036854775808ns", -1 << 63 * NANOSECOND),
+    ("-9223372036854775808ns", (-1 << 63) * NANOSECOND),
     // largest negative round trip value, see https://golang.org/issue/48629
-    ("-2562047h47m16.854775808s", -1 << 63 * NANOSECOND),
+    ("-2562047h47m16.854775808s", (-1 << 63) * NANOSECOND),
     // huge string; issue 15011.
     ("0.100000000000000000000h", 6 * MINUTE),
     // This value tests the first overflow check in leadingFraction.
