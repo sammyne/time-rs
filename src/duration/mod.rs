@@ -77,14 +77,47 @@ impl Duration {
         (hour as f64) + (nsec as f64) / (60.0 * 60.0 * 1e9)
     }
 
+    /// Returns the duration as an integer microsecond count.
+    ///
+    /// # Example
+    /// ```
+    #[doc = include_str!("../../examples/duration_microseconds.rs")]
+    /// ```
+    pub fn microseconds(&self) -> i64 {
+        self.0 / 1000
+    }
+
+    /// Returns the duration as an integer millisecond count.
+    ///
+    /// # Example
+    /// ```
+    #[doc = include_str!("../../examples/duration_milliseconds.rs")]
+    /// ```
+    pub fn milliseconds(&self) -> i64 {
+        self.0 / 1_000_000
+    }
+
     /// Returns the duration as an integer nanosecond count.
-    /// 
+    ///
     /// # Example
     /// ```
     #[doc = include_str!("../../examples/duration_nanoseconds.rs")]
     /// ```
     pub fn nanoseconds(&self) -> i64 {
         self.0
+    }
+
+    /// Returns the duration as a floating point number of minutes.
+    ///
+    /// # Example
+    /// ```
+    #[doc = include_str!("../../examples/duration_minutes.rs")]
+    /// ```
+    pub fn minutes(&self) -> f64 {
+        let m = self.0 / MINUTE.0;
+        let nsec = self.0 % MINUTE.0;
+
+        (m as f64) + (nsec as f64) / (60.0 * 1e9)
     }
 
     /// Returns the duration as a floating point number of seconds.

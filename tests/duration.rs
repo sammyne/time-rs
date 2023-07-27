@@ -16,6 +16,39 @@ fn hours() {
 }
 
 #[test]
+fn microseconds() {
+    let test_vector = vec![(Duration(-1000), -1), (Duration(1000), 1)];
+
+    for (i, (c, expect)) in test_vector.into_iter().enumerate() {
+        assert_eq!(expect, c.microseconds(), "#{i}");
+    }
+}
+
+#[test]
+fn milliseconds() {
+    let test_vector = vec![(Duration(-1_000_000), -1), (Duration(1_000_000), 1)];
+
+    for (i, (c, expect)) in test_vector.into_iter().enumerate() {
+        assert_eq!(expect, c.milliseconds(), "#{i}");
+    }
+}
+
+#[test]
+fn minutes() {
+    let test_vector = vec![
+        (Duration(-60000000000), -1.0),
+        (Duration(-1), -1.0 / 60e9),
+        (Duration(1), 1.0 / 60e9),
+        (Duration(60000000000), 1.0),
+        (Duration(3000), 5e-8),
+    ];
+
+    for (i, (c, expect)) in test_vector.into_iter().enumerate() {
+        assert_eq!(expect, c.minutes(), "#{i}");
+    }
+}
+
+#[test]
 fn nanoseconds() {
     let test_vector = vec![
         (Duration(-1000), -1000),
