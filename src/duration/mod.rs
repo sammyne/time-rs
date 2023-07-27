@@ -64,6 +64,19 @@ impl Duration {
         }
     }
 
+    /// Returns the duration as a floating point number of hours.
+    ///
+    /// # Example
+    /// ```
+    #[doc = include_str!("../../examples/duration_hours.rs")]
+    /// ```
+    pub fn hours(&self) -> f64 {
+        let hour = self.0 / HOUR.0;
+        let nsec = self.0 % HOUR.0;
+
+        (hour as f64) + (nsec as f64) / (60.0 * 60.0 * 1e9)
+    }
+
     /// Returns the duration as an integer nanosecond count.
     pub fn nanoseconds(&self) -> i64 {
         self.0

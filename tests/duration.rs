@@ -1,6 +1,21 @@
 use time::{Duration, HOUR, MICROSECOND, MILLISECOND, MINUTE, NANOSECOND, SECOND};
 
 #[test]
+fn hours() {
+    let test_vector = vec![
+        (Duration(-3600000000000), -1.0),
+        (Duration(-1), -1.0 / 3600e9),
+        (Duration(1), 1.0 / 3600e9),
+        (Duration(3600000000000), 1.0),
+        (Duration(36), 1e-11),
+    ];
+
+    for (i, (c, expect)) in test_vector.into_iter().enumerate() {
+        assert_eq!(expect, c.hours(), "#{i}");
+    }
+}
+
+#[test]
 fn nanoseconds() {
     let test_vector = vec![
         (Duration(-1000), -1000),
