@@ -78,11 +78,20 @@ impl Duration {
     }
 
     /// Returns the duration as an integer nanosecond count.
+    /// 
+    /// # Example
+    /// ```
+    #[doc = include_str!("../../examples/duration_nanoseconds.rs")]
+    /// ```
     pub fn nanoseconds(&self) -> i64 {
         self.0
     }
 
     /// Returns the duration as a floating point number of seconds.
+    /// # Example
+    /// ```
+    #[doc = include_str!("../../examples/duration_seconds.rs")]
+    /// ```
     pub fn seconds(&self) -> f64 {
         let s = self.0 / SECOND.0;
         let ns = self.0 % SECOND.0;
