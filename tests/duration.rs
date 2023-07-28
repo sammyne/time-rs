@@ -117,7 +117,6 @@ fn round() {
     .map(|(d, m, want)| Case { d, m, want });
 
     for (i, Case { d, m, want }) in test_vector.enumerate() {
-        println!("i={i}, d={}, m={}", d.0, m.0);
         let got = d.round(m);
         assert_eq!(want, got, "#{i}");
     }
@@ -171,6 +170,41 @@ fn to_string() {
                 -d.0
             );
         }
+    }
+}
+
+#[test]
+fn truncate() {
+    struct Case {
+        d: Duration,
+        m: Duration,
+        want: Duration,
+    }
+
+    let test_vector = vec![
+        (0.into(), SECOND, 0.into()),
+        (MINUTE, -7 * SECOND, MINUTE),
+        (MINUTE, 0.into(), MINUTE),
+        (MINUTE, 1.into(), MINUTE),
+        (MINUTE + 10 * SECOND, 10 * SECOND, MINUTE + 10 * SECOND),
+        (2 * MINUTE + 10 * SECOND, MINUTE, 2 * MINUTE),
+        (10 * MINUTE + 10 * SECOND, 3 * MINUTE, 9 * MINUTE),
+        (
+            MINUTE + 10 * SECOND,
+            MINUTE + 10 * SECOND + 1.into(),
+            0.into(),
+        ),
+        (MINUTE + 10 * SECOND, HOUR, 0.into()),
+        (-MINUTE, SECOND, -MINUTE),
+        (-10 * MINUTE, 3 * MINUTE, -9 * MINUTE),
+        (-10 * MINUTE, HOUR, 0.into()),
+    ]
+    .into_iter()
+    .map(|(d, m, want)| Case { d, m, want });
+
+    for (i, Case { d, m, want }) in test_vector.enumerate() {
+        let got = d.truncate(m);
+        assert_eq!(want, got, "#{i}");
     }
 }
 

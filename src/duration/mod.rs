@@ -184,6 +184,16 @@ impl Duration {
     pub fn string(&self) -> String {
         self.to_string()
     }
+
+    /// Returns the result of rounding `self` toward zero to a multiple of `m`.
+    /// If `m` <= 0, `truncate` returns `self` unchanged.
+    pub fn truncate(&self, m: Self) -> Self {
+        if m.0 <= 0 {
+            *self
+        } else {
+            Self(self.0 - self.0 % m.0)
+        }
+    }
 }
 
 impl Add for Duration {
