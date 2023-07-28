@@ -207,7 +207,7 @@ impl Display for Duration {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // Largest time is 2540400h10m10.000000000s
         if self.0 == i64::MIN {
-            return write!(f, "-2562047h47m16.854775808s");
+            return f.pad("-2562047h47m16.854775808s");
         }
 
         let mut buf = [0u8; 32];
@@ -224,7 +224,7 @@ impl Display for Duration {
             w -= 1;
 
             let prec = if u == 0 {
-                return write!(f, "0s");
+                return f.pad("0s");
             } else if u < MICROSECOND.0 as u64 {
                 // print nanoseconds
                 buf[w] = b'n';
@@ -280,7 +280,7 @@ impl Display for Duration {
         }
 
         let out = unsafe { str::from_utf8_unchecked(&buf[w..]) };
-        write!(f, "{out}")
+        f.pad(out)
     }
 }
 
