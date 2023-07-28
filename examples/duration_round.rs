@@ -18,7 +18,7 @@ fn main() {
 
     let mut got = vec![];
     for r in round {
-        let _ = writeln!(&mut got, "d.round({:>6}) = {}", r.to_string(), d.round(r));
+        let _ = writeln!(&mut got, "d.round({:>6}) = {}", r, d.round(r));
     }
 
     let got = unsafe { String::from_utf8_unchecked(got) };
