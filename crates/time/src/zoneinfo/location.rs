@@ -5,6 +5,7 @@ use std::{
     io::{ErrorKind, Read},
     mem,
     ops::{Deref, DerefMut},
+    sync::RwLock,
 };
 
 use crate::internal;
@@ -23,11 +24,16 @@ use crate::{
 const MAX_FILE_SIZE: usize = 10 << 20;
 
 lazy_static::lazy_static! {
-  static ref LOCAL: Location = Location::local();
+    pub static ref LOCAL: Location = Location::local();
+
+    pub static ref UTC: Location = Location{name: "UTC".to_string(), ..Default::default()};
+}
+
+lazy_static::lazy_static! {
 
   // Many systems use /usr/share/zoneinfo, Solaris 2 has
-// /usr/share/lib/zoneinfo, IRIX 6 has /usr/lib/locale/TZ,
-// NixOS has /etc/zoneinfo.
+  // /usr/share/lib/zoneinfo, IRIX 6 has /usr/lib/locale/TZ,
+  // NixOS has /etc/zoneinfo.
   static ref PLATFORM_ZONE_SOURCES: [&'static str; 4] = [
     "/usr/share/zoneinfo/",
     "/usr/share/lib/zoneinfo/",
@@ -44,8 +50,6 @@ lazy_static::lazy_static! {
 
     out
   };
-
-  static ref UTC: Location = Location{name: "UTC".to_string(), ..Default::default()};
 
   static ref ZONEINFO: String = env::var("ZONEINFO").unwrap_or_default();
 }
@@ -935,4 +939,9 @@ fn tzset_rule(s: &str) -> Option<(Rule, &str)> {
 fn byte_string(p: &[u8]) -> &str {
     let s = p.split(|&v| v == 0).next().expect("next mustn't be none");
     unsafe { std::str::from_utf8_unchecked(s) }
+}
+
+#[cfg(test)]
+pub fn hello() {
+    println!("hello");
 }
