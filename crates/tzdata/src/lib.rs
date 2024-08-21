@@ -50,8 +50,8 @@ pub fn load(name: &str) -> Result<&'static [u8], Error> {
 
         idx = off;
         if get4s(&z[idx..]) != ZHEADER
-            || get2s(&z[idx..]) != meth
-            || get2s(&z[idx..]) != namelen
+            || get2s(&z[idx + 8..]) != meth
+            || get2s(&z[idx + 26..]) != namelen
             || &z[idx + 30..idx + 30 + namelen] != name
         {
             return Err(Error::Corrupted);
