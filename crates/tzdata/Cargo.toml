@@ -11,3 +11,4 @@ walkdir = "2.5.0"
 zip = "2.2.0"
 
 [dependencies]
+thiserror.workspace = true

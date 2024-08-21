@@ -2,3 +2,6 @@
 members = ["crates/time", "crates/tzdata"]
 
 resolver = "2"
+
+[workspace.dependencies]
+thiserror = "1.0"
