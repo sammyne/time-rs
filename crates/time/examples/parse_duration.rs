@@ -13,7 +13,11 @@ fn main() {
     );
     assert_eq!(
         "There are 1000 nanoseconds in 1µs.",
-        format!("There are {} nanoseconds in {}.", micro.nanoseconds(), micro)
+        format!(
+            "There are {} nanoseconds in {}.",
+            micro.nanoseconds(),
+            micro
+        )
     );
     assert_eq!(
         "There are 1.00e-6 seconds in 1µs.",

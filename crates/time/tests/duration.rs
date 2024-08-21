@@ -65,7 +65,10 @@ fn nanoseconds() {
 #[test]
 fn parse_duration() {
     for (i, c) in PARSE_TESTS.iter().enumerate() {
-        let got: Duration = c.input.parse().expect(&format!("#{} parse '{}'", i, c.input));
+        let got: Duration = c
+            .input
+            .parse()
+            .expect(&format!("#{} parse '{}'", i, c.input));
         assert_eq!(c.want, got, "#{} parse '{}'", i, c.input);
     }
 }
@@ -92,10 +95,22 @@ fn round() {
         (-2 * MINUTE - 10 * SECOND, MINUTE, -2 * MINUTE),
         (-2 * MINUTE - 30 * SECOND, MINUTE, -3 * MINUTE),
         (-2 * MINUTE - 50 * SECOND, MINUTE, -3 * MINUTE),
-        ((8e18 as i64).into(), (3e18 as i64).into(), (9e18 as i64).into()),
+        (
+            (8e18 as i64).into(),
+            (3e18 as i64).into(),
+            (9e18 as i64).into(),
+        ),
         ((9e18 as i64).into(), (5e18 as i64).into(), i64::MAX.into()),
-        ((-8e18 as i64).into(), (3e18 as i64).into(), (-9e18 as i64).into()),
-        ((-9e18 as i64).into(), (5e18 as i64).into(), (-1 << 63).into()),
+        (
+            (-8e18 as i64).into(),
+            (3e18 as i64).into(),
+            (-9e18 as i64).into(),
+        ),
+        (
+            (-9e18 as i64).into(),
+            (5e18 as i64).into(),
+            (-1 << 63).into(),
+        ),
         (((3 << 61) - 1).into(), (3 << 61).into(), (3 << 61).into()),
     ]
     .into_iter()
@@ -136,12 +151,24 @@ fn to_string() {
     .collect();
 
     for (i, (expect, d)) in test_vector.into_iter().enumerate() {
-        assert_eq!(expect, d.to_string(), "#{} Duration({}).to_string()", i, d.0);
+        assert_eq!(
+            expect,
+            d.to_string(),
+            "#{} Duration({}).to_string()",
+            i,
+            d.0
+        );
 
         if d.0 > 0 {
             let expect = format!("-{expect}");
             let d = Duration(-d.0);
-            assert_eq!(expect, d.to_string(), "#{} Duration({}).to_string()", i, -d.0);
+            assert_eq!(
+                expect,
+                d.to_string(),
+                "#{} Duration({}).to_string()",
+                i,
+                -d.0
+            );
         }
     }
 }
@@ -162,7 +189,11 @@ fn truncate() {
         (MINUTE + 10 * SECOND, 10 * SECOND, MINUTE + 10 * SECOND),
         (2 * MINUTE + 10 * SECOND, MINUTE, 2 * MINUTE),
         (10 * MINUTE + 10 * SECOND, 3 * MINUTE, 9 * MINUTE),
-        (MINUTE + 10 * SECOND, MINUTE + 10 * SECOND + 1.into(), 0.into()),
+        (
+            MINUTE + 10 * SECOND,
+            MINUTE + 10 * SECOND + 1.into(),
+            0.into(),
+        ),
         (MINUTE + 10 * SECOND, HOUR, 0.into()),
         (-MINUTE, SECOND, -MINUTE),
         (-10 * MINUTE, 3 * MINUTE, -9 * MINUTE),
