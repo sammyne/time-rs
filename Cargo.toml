@@ -1,4 +1,4 @@
 [workspace]
-members = ["crates/time"]
+members = ["crates/time", "crates/tzdata"]
 
 resolver = "2"

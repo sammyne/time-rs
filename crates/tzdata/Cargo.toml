@@ -1,0 +1,13 @@
+[package]
+name = "tzdata"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+anyhow = "1.0.86"
+walkdir = "2.5.0"
+zip = "2.2.0"
+
+[dependencies]
