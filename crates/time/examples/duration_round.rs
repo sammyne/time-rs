@@ -1,4 +1,5 @@
-use std::{io::Write, vec};
+use std::io::Write;
+use std::vec;
 
 use time::Duration;
 

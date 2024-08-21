@@ -1,21 +1,14 @@
-use std::{
-    env,
-    fmt::Display,
-    fs::File,
-    io::{ErrorKind, Read},
-    mem,
-    ops::{Deref, DerefMut},
-    sync::RwLock,
-};
+use std::fmt::Display;
+use std::fs::File;
+use std::io::{ErrorKind, Read};
+use std::ops::{Deref, DerefMut};
+use std::sync::RwLock;
+use std::{env, mem};
 
-use crate::internal;
+use crate::zoneinfo::Error;
 use crate::{
-    zoneinfo::Error, ABSOLUTE_TO_INTERNAL, INTERNAL_TO_ABSOLUTE, INTERNAL_TO_UNIX,
-    SECONDS_PER_HOUR, SECONDS_PER_MINUTE, UNIX_TO_INTERNAL,
-};
-use crate::{
-    Month, ABSOLUTE_ZERO_YEAR, DAYS_PER100_YEARS, DAYS_PER400_YEARS, DAYS_PER4_YEARS,
-    SECONDS_PER_DAY,
+    internal, Month, ABSOLUTE_TO_INTERNAL, ABSOLUTE_ZERO_YEAR, DAYS_PER100_YEARS, DAYS_PER400_YEARS, DAYS_PER4_YEARS,
+    INTERNAL_TO_ABSOLUTE, INTERNAL_TO_UNIX, SECONDS_PER_DAY, SECONDS_PER_HOUR, SECONDS_PER_MINUTE, UNIX_TO_INTERNAL,
 };
 
 // maxFileSize is the max permitted size of files read by readFile.
@@ -109,11 +102,7 @@ impl Location {
         // Optimize for that case by returning the same *Location for a given hour.
         let hour = offset / 60 / 60;
 
-        if name.is_empty()
-            && -HOURS_BEFORE_UTC <= hour
-            && hour <= HOURS_AFTER_UTC
-            && hour * 60 * 60 == offset
-        {
+        if name.is_empty() && -HOURS_BEFORE_UTC <= hour && hour <= HOURS_AFTER_UTC && hour * 60 * 60 == offset {
             return UNNAMED_FIXED_ZONES[(hour + HOURS_BEFORE_UTC) as usize].clone();
         }
 
@@ -209,13 +198,8 @@ impl Location {
         let is64 = version > 1;
         if version > 1 {
             // Skip the 32-bit data.
-            let mut skip = n[N_TIME] * 4
-                + n[N_TIME]
-                + n[N_ZONE] * 6
-                + n[N_CHAR]
-                + n[N_LEAP] * 8
-                + n[N_STD_WALL]
-                + n[N_UTC_LOCAL];
+            let mut skip =
+                n[N_TIME] * 4 + n[N_TIME] + n[N_ZONE] * 6 + n[N_CHAR] + n[N_LEAP] * 8 + n[N_STD_WALL] + n[N_UTC_LOCAL];
             // Skip the version 2 header that we just read.
             skip += 4 + 16;
             let _ = d.skip(skip);
@@ -319,9 +303,7 @@ impl Location {
             if let Some(vv) = l.tx.get(i + 1) {
                 l.cache_end = vv.when;
             } else if !l.extend.is_empty() {
-                if let Some((name, offset, estart, eend, is_dst)) =
-                    tzset(&l.extend, l.cache_start, sec)
-                {
+                if let Some((name, offset, estart, eend, is_dst)) = tzset(&l.extend, l.cache_start, sec) {
                     l.cache_start = estart;
                     l.cache_end = eend;
 
@@ -546,8 +528,7 @@ impl<'a> DataIO<'a> {
 
 /// 返回 (name,offset,start,end,is_dst)
 fn tzset(s: &str, last_tx_sec: i64, sec: i64) -> Option<(&str, isize, i64, i64, bool)> {
-    let (mut std_name, std_offset, s) = match tzset_name(s).map(|(name, s)| (name, tzset_offset(s)))
-    {
+    let (mut std_name, std_offset, s) = match tzset_name(s).map(|(name, s)| (name, tzset_offset(s))) {
         Some((name, Some((offset, s)))) => (name, offset, s),
         _ => return None,
     };
@@ -588,10 +569,7 @@ fn tzset(s: &str, last_tx_sec: i64, sec: i64) -> Option<(&str, isize, i64, i64, 
         _ => return None,
     };
 
-    let (year, _, _, yday) = abs_date(
-        (sec + UNIX_TO_INTERNAL + INTERNAL_TO_ABSOLUTE) as u64,
-        false,
-    );
+    let (year, _, _, yday) = abs_date((sec + UNIX_TO_INTERNAL + INTERNAL_TO_ABSOLUTE) as u64, false);
 
     let ysec = (yday * SECONDS_PER_DAY) as i64 + sec % SECONDS_PER_DAY as i64;
 
@@ -627,13 +605,7 @@ fn tzset(s: &str, last_tx_sec: i64, sec: i64) -> Option<(&str, isize, i64, i64, 
             std_is_dst,
         )
     } else {
-        (
-            dst_name,
-            dst_offset,
-            start_sec + abs,
-            end_sec + abs,
-            dst_is_dst,
-        )
+        (dst_name, dst_offset, start_sec + abs, end_sec + abs, dst_is_dst)
     };
 
     Some(out)
