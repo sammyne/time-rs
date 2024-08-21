@@ -1,4 +1,5 @@
-use std::{fmt::Display, ops::AddAssign};
+use std::fmt::Display;
+use std::ops::AddAssign;
 
 /// A Month specifies a month of the year (January = 1, ...).
 #[repr(i32)]

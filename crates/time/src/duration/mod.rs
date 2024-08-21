@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::fmt::Display;
-use std::ops::{Add, Div, Neg, Sub};
+use std::ops::{Add, Div, Mul, Neg, Sub};
 use std::str;
-use std::{ops::Mul, str::FromStr};
+use std::str::FromStr;
 
 use lazy_static::lazy_static;
 
@@ -431,9 +431,7 @@ impl FromStr for Duration {
             let unit = if let Some(v) = UNIT_MAP.get(u) {
                 *v
             } else {
-                return Err(DurationParseError::UnknownUnit {
-                    unit: u.to_string(),
-                });
+                return Err(DurationParseError::UnknownUnit { unit: u.to_string() });
             };
             if v > (i64::MIN as u64) / unit {
                 // overflow
