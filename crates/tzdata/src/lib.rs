@@ -9,7 +9,7 @@ pub enum Error {
     Corrupted,
     #[error("not found")]
     NotFound,
-    #[error("unsupported compression in embedded tzdata")]
+    #[error("unsupported compression in tzdata")]
     UnsupportedCompression,
 }
 

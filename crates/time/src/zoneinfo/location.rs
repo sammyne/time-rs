@@ -6,8 +6,9 @@ use std::{env, mem};
 
 use crate::zoneinfo::Error;
 use crate::{
-    internal, Month, ABSOLUTE_TO_INTERNAL, ABSOLUTE_ZERO_YEAR, DAYS_PER100_YEARS, DAYS_PER400_YEARS, DAYS_PER4_YEARS,
-    INTERNAL_TO_ABSOLUTE, INTERNAL_TO_UNIX, SECONDS_PER_DAY, SECONDS_PER_HOUR, SECONDS_PER_MINUTE, UNIX_TO_INTERNAL,
+    internal, sys, Month, ABSOLUTE_TO_INTERNAL, ABSOLUTE_ZERO_YEAR, DAYS_PER100_YEARS, DAYS_PER400_YEARS,
+    DAYS_PER4_YEARS, INTERNAL_TO_ABSOLUTE, INTERNAL_TO_UNIX, SECONDS_PER_DAY, SECONDS_PER_HOUR, SECONDS_PER_MINUTE,
+    UNIX_TO_INTERNAL,
 };
 
 // maxFileSize is the max permitted size of files read by readFile.
@@ -458,7 +459,7 @@ fn load_tzinfo(name: &str, source: &str) -> Result<Vec<u8>, Error> {
 
 fn load_tzinfo_from_dir_or_zip(dir: &str, name: &str) -> Result<Vec<u8>, Error> {
     if dir.ends_with(".zip") {
-        todo!()
+        return load_tzinfo_from_zip(dir, name);
     }
 
     let name = if dir.is_empty() {
@@ -468,6 +469,70 @@ fn load_tzinfo_from_dir_or_zip(dir: &str, name: &str) -> Result<Vec<u8>, Error> 
     };
 
     read_file(&name)
+}
+
+fn load_tzinfo_from_zip(zipfile: &str, name: &str) -> Result<Vec<u8>, Error> {
+    let mut f = File::open(zipfile)?;
+
+    const ZECHEADER: usize = 0x06054b50;
+    const ZCHEADER: usize = 0x02014b50;
+    const ZTAILSIZE: usize = 22;
+
+    const ZHEADERSIZE: usize = 30;
+    const ZHEADER: usize = 0x04034b50;
+
+    let mut buf = vec![0u8; ZTAILSIZE];
+    sys::preadn(&mut f, &mut buf, -(ZTAILSIZE as i64)).map_err(|_| Error::corrupted_zip(zipfile))?;
+    if get4(&buf) as usize != ZECHEADER {
+        return Err(Error::corrupted_zip(zipfile));
+    }
+    let n = get2(&buf[10..]);
+    let size = get4(&buf[12..]);
+    let off = get4(&buf[16..]);
+
+    let mut buf = vec![0u8; size];
+    sys::preadn(&mut f, &mut buf, off as i64)?;
+
+    let mut buf = buf.as_slice();
+    let name = name.as_bytes();
+    for _ in 0..n {
+        if get4(&buf) != ZCHEADER {
+            break;
+        }
+
+        let meth = get2(&buf[10..]);
+        let size = get4(&buf[24..]);
+        let namelen = get2(&buf[28..]);
+        let xlen = get2(&buf[30..]);
+        let fclen = get2(&buf[32..]);
+        let off = get4(&buf[42..]);
+        let zname = &buf[46..(46 + namelen)];
+        buf = &buf[(46 + namelen + xlen + fclen)..];
+        if zname != name {
+            continue;
+        }
+        if meth != 0 {
+            return Err(Error::Tzdata(tzdata::Error::UnsupportedCompression));
+        }
+
+        let mut buf = vec![0u8; ZHEADERSIZE + namelen];
+        sys::preadn(&mut f, &mut buf, off as i64).map_err(|_| Error::corrupted_zip(zipfile))?;
+        if get4(&buf) != ZHEADER
+            || get2(&buf[8..]) != meth
+            || get2(&buf[26..]) != namelen
+            || &buf[30..(30 + namelen)] != name
+        {
+            return Err(Error::corrupted_zip(zipfile));
+        }
+        let xlen = get2(&buf[28..]);
+
+        let mut buf = vec![0u8; size];
+        sys::preadn(&mut f, &mut buf, (off + 30 + namelen + xlen) as i64).map_err(|_| Error::corrupted_zip(zipfile))?;
+
+        return Ok(buf);
+    }
+
+    Err(Error::NotFound)
 }
 
 fn read_file(name: &str) -> Result<Vec<u8>, Error> {
@@ -924,4 +989,20 @@ fn tzset_rule(s: &str) -> Option<(Rule, &str)> {
 fn byte_string(p: &[u8]) -> &str {
     let s = p.split(|&v| v == 0).next().expect("next mustn't be none");
     unsafe { std::str::from_utf8_unchecked(s) }
+}
+
+fn get4(b: &[u8]) -> usize {
+    if b.len() < 4 {
+        return 0;
+    }
+
+    u32::from_le_bytes([b[0], b[1], b[2], b[3]]) as usize
+}
+
+fn get2(b: &[u8]) -> usize {
+    if b.len() < 2 {
+        return 0;
+    }
+
+    u16::from_le_bytes([b[0], b[1]]) as usize
 }

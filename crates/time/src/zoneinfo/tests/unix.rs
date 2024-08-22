@@ -1,7 +1,7 @@
 use std::env;
 use std::path::Path;
 
-use super::export;
+use super::export::{self, Defer};
 
 #[test]
 fn env_tz_usage() {
@@ -80,23 +80,9 @@ fn env_tz_usage() {
     assert_eq!(crate::LOCAL.to_string(), "UTC", "invalid path should fallback to UTC");
 }
 
-pub struct Defer<F: FnMut()>(F);
-
 struct EnvKeeper {
     pub k: String,
     pub v: Option<String>,
-}
-
-impl<F: FnMut()> Drop for Defer<F> {
-    fn drop(&mut self) {
-        self.0()
-    }
-}
-
-impl<F: FnMut()> From<F> for Defer<F> {
-    fn from(value: F) -> Self {
-        Self(value)
-    }
 }
 
 impl Drop for EnvKeeper {
