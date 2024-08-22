@@ -9,3 +9,5 @@ edition = "2021"
 cfg-if = "1.0.0"
 lazy_static = "1.4.0"
 thiserror = "1.0"
+
+tzdata.workspace = true

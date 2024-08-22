@@ -12,6 +12,14 @@ pub enum Error {
     Io(io::Error),
     #[error("unknown time zone {0}")]
     UnknownTimeZone(String),
+    #[error("tzdata: {0}")]
+    Tzdata(tzdata::Error),
+}
+
+impl From<tzdata::Error> for Error {
+    fn from(value: tzdata::Error) -> Self {
+        Self::Tzdata(value)
+    }
 }
 
 impl Error {

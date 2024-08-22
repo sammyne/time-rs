@@ -2,7 +2,6 @@ use std::fmt::Display;
 use std::fs::File;
 use std::io::{ErrorKind, Read};
 use std::ops::{Deref, DerefMut};
-use std::sync::RwLock;
 use std::{env, mem};
 
 use crate::zoneinfo::Error;
@@ -57,7 +56,7 @@ const HOURS_AFTER_UTC: isize = 14;
 
 #[derive(Clone, Default)]
 pub struct Location {
-    name: String,
+    pub(super) name: String,
     zone: Vec<Zone>,
     tx: Vec<ZoneTrans>,
 
@@ -185,7 +184,7 @@ impl Location {
 
         let mut n = [0usize; 6];
         for i in 0usize..6 {
-            match d.big4().map_err(|_| Error::BadData)? {
+            match d.big4()? {
                 nn if (nn as usize) as u32 != nn => return Err(Error::BadData),
                 nn => n[i] = nn as usize,
             }
@@ -223,16 +222,15 @@ impl Location {
 
         let abbrev = d.read_vec(n[N_CHAR])?;
 
-        let _ = d.read_vec(n[N_LEAP] * size + 4);
+        let _ = d.read_vec(n[N_LEAP] * (size + 4))?;
 
         let isstd = d.read_vec(n[N_STD_WALL])?;
 
         let isutc = d.read_vec(n[N_UTC_LOCAL])?;
 
-        let extend = if d.0.ends_with(&[b'\n', b'\n']) {
-            unsafe { std::str::from_utf8_unchecked(&d.0[1..]) }
-        } else {
-            ""
+        let extend = match d.0.strip_prefix(&[b'\n']).map(|v| v.strip_suffix(&[b'\n'])) {
+            Some(Some(v)) => unsafe { std::str::from_utf8_unchecked(v) },
+            _ => "",
         };
 
         let nzone = n[N_ZONE];
@@ -331,7 +329,7 @@ impl Location {
 }
 
 impl Location {
-    fn local() -> Self {
+    pub(super) fn local() -> Self {
         match env::var("TZ") {
             Ok(tz) if !tz.is_empty() => {
                 let tz = tz.strip_prefix(':').unwrap_or_else(|| &tz);
@@ -406,30 +404,43 @@ fn fixed_zone<T: Into<String>>(name: T, offset: isize) -> Location {
     }
 }
 
-fn load_location<T>(name: T, sources: &[&str]) -> Result<Location, Error>
+pub(crate) fn load_location<T>(name: T, sources: &[&str]) -> Result<Location, Error>
 where
     T: AsRef<str>,
 {
     let name = name.as_ref();
 
-    let mut err = None;
+    let mut first_err = None;
     for s in sources {
         match load_tzinfo(name, s) {
             Ok(v) => match Location::load_from_tzdata(name, v) {
-                Err(e) => err = Some(e),
+                Err(e) => first_err = Some(e),
                 ok => return ok,
             },
-            Err(e) if err.is_none() => match e {
+            Err(e) if first_err.is_none() => match e {
                 Error::Io(v) if std::matches!(v.kind(), ErrorKind::NotFound) => {}
-                v => err = Some(v),
+                v => first_err = Some(v),
             },
             _ => {}
         }
     }
 
     // TODO: load from embedded tzdata
+    match tzdata::load(name) {
+        Ok(v) => match Location::load_from_tzdata(name, v) {
+            Err(err) if first_err.is_none() => {
+                first_err = Some(err);
+            }
+            Err(_) => {}
+            ok => return ok,
+        },
+        Err(err) if first_err.is_none() && !std::matches!(err, tzdata::Error::NotFound) => {
+            first_err = Some(err.into());
+        }
+        _ => {}
+    }
 
-    let err = match err {
+    let err = match first_err {
         Some(v) => v,
         None => Error::unknown_time_zone(name.to_string()),
     };
@@ -521,8 +532,10 @@ impl<'a> DataIO<'a> {
         if self.0.len() < n {
             return Err(Error::BadData);
         }
+        let out = Self(&self.0[..n]);
+        self.0 = &self.0[n..];
 
-        Ok(Self(&self.0[..n]))
+        Ok(out)
     }
 }
 
@@ -911,9 +924,4 @@ fn tzset_rule(s: &str) -> Option<(Rule, &str)> {
 fn byte_string(p: &[u8]) -> &str {
     let s = p.split(|&v| v == 0).next().expect("next mustn't be none");
     unsafe { std::str::from_utf8_unchecked(s) }
-}
-
-#[cfg(test)]
-pub fn hello() {
-    println!("hello");
 }
