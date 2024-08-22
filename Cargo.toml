@@ -5,3 +5,4 @@ resolver = "2"
 
 [workspace.dependencies]
 thiserror = "1.0"
+tzdata.path = "crates/tzdata"
