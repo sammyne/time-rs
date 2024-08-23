@@ -31,7 +31,7 @@ const INTERNAL_YEAR: isize = 1;
 
 // Offsets to convert between internal and absolute or Unix times.
 const ABSOLUTE_TO_INTERNAL: i64 =
-    ((ABSOLUTE_ZERO_YEAR - INTERNAL_YEAR) as f64 * 365.2425 * (SECONDS_PER_DAY as f64)) as i64;
+    ((ABSOLUTE_ZERO_YEAR - INTERNAL_YEAR) as f64 * 365.2425) as i64 * (SECONDS_PER_DAY as i64);
 const INTERNAL_TO_ABSOLUTE: i64 = -ABSOLUTE_TO_INTERNAL;
 
 const UNIX_TO_INTERNAL: i64 = (1969 * 365 + 1969 / 4 - 1969 / 100 + 1969 / 400) * SECONDS_PER_DAY as i64;

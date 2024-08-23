@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 use std::fs::File;
 use std::io::{ErrorKind, Read};
 use std::ops::{Deref, DerefMut};
@@ -27,7 +27,7 @@ lazy_static::lazy_static! {
   // Many systems use /usr/share/zoneinfo, Solaris 2 has
   // /usr/share/lib/zoneinfo, IRIX 6 has /usr/lib/locale/TZ,
   // NixOS has /etc/zoneinfo.
-  static ref PLATFORM_ZONE_SOURCES: [&'static str; 4] = [
+  pub(crate) static ref PLATFORM_ZONE_SOURCES: Vec<&'static str> = vec![
     "/usr/share/zoneinfo/",
     "/usr/share/lib/zoneinfo/",
     "/usr/lib/locale/TZ/",
@@ -366,6 +366,12 @@ impl Location {
     }
 }
 
+impl Debug for Location {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Location").field("name", &self.name).finish()
+    }
+}
+
 impl Display for Location {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.name)
@@ -605,7 +611,7 @@ impl<'a> DataIO<'a> {
 }
 
 /// 返回 (name,offset,start,end,is_dst)
-fn tzset(s: &str, last_tx_sec: i64, sec: i64) -> Option<(&str, isize, i64, i64, bool)> {
+pub(crate) fn tzset(s: &str, last_tx_sec: i64, sec: i64) -> Option<(&str, isize, i64, i64, bool)> {
     let (mut std_name, std_offset, s) = match tzset_name(s).map(|(name, s)| (name, tzset_offset(s))) {
         Some((name, Some((offset, s)))) => (name, offset, s),
         _ => return None,
@@ -617,20 +623,15 @@ fn tzset(s: &str, last_tx_sec: i64, sec: i64) -> Option<(&str, isize, i64, i64, 
         return Some((std_name, std_offset, last_tx_sec, OMEGA, false));
     }
 
-    let (mut dst_name, mut dst_offset, s) = match tzset_name(s) {
-        Some((name, s)) => {
-            let (offset, s) = if s.is_empty() || s.starts_with(',') {
-                (std_offset + SECONDS_PER_HOUR, s)
-            } else {
-                match tzset_offset(s) {
-                    Some((offset, s)) => (-offset, s),
-                    _ => return None,
-                }
-            };
+    let (mut dst_name, mut dst_offset, s) = {
+        let (name, s) = tzset_name(s)?;
+        let (offset, s) = if s.is_empty() || s.starts_with(',') {
+            (std_offset + SECONDS_PER_HOUR, s)
+        } else {
+            tzset_offset(s).map(|(offset, s)| (-offset, s))?
+        };
 
-            (name, offset, s)
-        }
-        _ => return None,
+        (name, offset, s)
     };
 
     let s = if s.is_empty() { ",M3.2.0,M11.1.0" } else { s };
@@ -638,7 +639,7 @@ fn tzset(s: &str, last_tx_sec: i64, sec: i64) -> Option<(&str, isize, i64, i64, 
     let s = s.strip_prefix(|c| std::matches!(c, ',' | ';'))?;
 
     let (start_rule, s) = match tzset_rule(s) {
-        Some((r, s)) if s.starts_with(',') => (r, s.strip_prefix(',').unwrap()),
+        Some((r, s)) => (r, s.strip_prefix(',')?),
         _ => return None,
     };
 
@@ -689,29 +690,32 @@ fn tzset(s: &str, last_tx_sec: i64, sec: i64) -> Option<(&str, isize, i64, i64, 
     Some(out)
 }
 
-fn tzset_name(s: &str) -> Option<(&str, &str)> {
+pub(super) fn tzset_name(s: &str) -> Option<(&str, &str)> {
     if s.is_empty() {
         return None;
     }
 
-    if s.starts_with('<') {
+    if let Some(s) = s.strip_prefix('<') {
         return s.split_once('>');
     }
 
-    match s.split_once(|c| {
-        std::matches!(
-            c,
-            '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '|' | '-' | '+'
-        )
-    }) {
-        Some((start, remainder)) if start.len() >= 4 => Some((start, remainder)),
+    match s
+        .find(|c| {
+            std::matches!(
+                c,
+                '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | ',' | '-' | '+'
+            )
+        })
+        .map(|i| s.split_at(i))
+    {
+        Some((start, remainder)) if start.len() >= 3 => Some((start, remainder)),
         Some(_) => None,
         None if s.len() < 3 => None,
         None => Some((s, "")),
     }
 }
 
-fn tzset_offset(s: &str) -> Option<(isize, &str)> {
+pub(super) fn tzset_offset(s: &str) -> Option<(isize, &str)> {
     if s.is_empty() {
         return None;
     }
@@ -757,7 +761,7 @@ fn tzset_num(s: &str, min: isize, max: isize) -> Option<(isize, &str)> {
             if i == 0 || num < min {
                 return None;
             }
-            return Some((num, s.split_at(i + 1).1));
+            return Some((num, s.split_at(i).1));
         }
 
         num *= 10;
@@ -770,7 +774,7 @@ fn tzset_num(s: &str, min: isize, max: isize) -> Option<(isize, &str)> {
     if num < min {
         None
     } else {
-        Some((num, s))
+        Some((num, ""))
     }
 }
 
@@ -819,21 +823,21 @@ fn tzrule_time(year: isize, r: Rule, off: isize) -> isize {
     s + r.time - off
 }
 
-#[derive(Default)]
-enum RuleKind {
+#[derive(Debug, Default, PartialEq, Eq)]
+pub(super) enum RuleKind {
     #[default]
     Julian,
     DOY,
     MonthWeekDay,
 }
 
-#[derive(Default)]
-struct Rule {
-    kind: RuleKind,
-    day: isize,
-    week: isize,
-    mon: isize,
-    time: isize,
+#[derive(Debug, Default, PartialEq, Eq)]
+pub(super) struct Rule {
+    pub(super) kind: RuleKind,
+    pub(super) day: isize,
+    pub(super) week: isize,
+    pub(super) mon: isize,
+    pub(super) time: isize,
 }
 
 // daysBefore[m] counts the number of days in a non-leap year
@@ -945,7 +949,7 @@ fn abs_date(abs: u64, full: bool) -> (isize, Month, isize, isize) {
 
 // tzsetRule parses a rule from a tzset string.
 // It returns the rule, and the remainder of the string, and reports success.
-fn tzset_rule(s: &str) -> Option<(Rule, &str)> {
+pub(super) fn tzset_rule(s: &str) -> Option<(Rule, &str)> {
     if s.is_empty() {
         return None;
     }
