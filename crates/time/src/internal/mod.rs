@@ -6,8 +6,8 @@ pub fn now() -> (i64, i32) {
         Ok(v) => (v.as_secs() as i64, v.subsec_nanos() as i32),
         Err(v) => {
             let d = v.duration();
-            let s = d.as_secs() as i64 * -1;
-            let ns = d.subsec_nanos() as i32 * -1;
+            let s = -(d.as_secs() as i64);
+            let ns = -(d.subsec_nanos() as i32);
             (s, ns)
         }
     }

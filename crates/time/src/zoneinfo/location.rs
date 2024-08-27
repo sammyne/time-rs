@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::fmt::{Debug, Display};
 use std::fs::File;
 use std::io::{ErrorKind, Read};
@@ -102,7 +103,7 @@ impl Location {
         // Optimize for that case by returning the same *Location for a given hour.
         let hour = offset / 60 / 60;
 
-        if name.is_empty() && -HOURS_BEFORE_UTC <= hour && hour <= HOURS_AFTER_UTC && hour * 60 * 60 == offset {
+        if name.is_empty() && (-HOURS_BEFORE_UTC..=HOURS_AFTER_UTC).contains(&hour) && hour * 60 * 60 == offset {
             return UNNAMED_FIXED_ZONES[(hour + HOURS_BEFORE_UTC) as usize].clone();
         }
 
@@ -184,10 +185,11 @@ impl Location {
         const N_CHAR: usize = 5;
 
         let mut n = [0usize; 6];
-        for i in 0usize..6 {
+        //for i in 0usize..6 {
+        for v in &mut n {
             match d.big4()? {
                 nn if (nn as usize) as u32 != nn => return Err(Error::BadData),
-                nn => n[i] = nn as usize,
+                nn => *v = nn as usize,
             }
         }
 
@@ -202,13 +204,13 @@ impl Location {
                 n[N_TIME] * 4 + n[N_TIME] + n[N_ZONE] * 6 + n[N_CHAR] + n[N_LEAP] * 8 + n[N_STD_WALL] + n[N_UTC_LOCAL];
             // Skip the version 2 header that we just read.
             skip += 4 + 16;
-            let _ = d.skip(skip);
+            d.skip(skip);
 
             // Read the counts again, they can differ.
-            for i in 0usize..6 {
+            for v in &mut n {
                 match d.big4().map_err(|_| Error::BadData)? {
                     nn if (nn as usize) as u32 != nn => return Err(Error::BadData),
-                    nn => n[i] = nn as usize,
+                    nn => *v = nn as usize,
                 }
             }
         }
@@ -335,27 +337,26 @@ impl Location {
             Ok(tz) if !tz.is_empty() => {
                 let tz = tz.strip_prefix(':').unwrap_or_else(|| &tz);
                 if tz.starts_with('/') {
-                    if let Ok(mut z) = load_location(&tz, &[""]) {
+                    if let Ok(mut z) = load_location(tz, &[""]) {
                         z.name = match tz {
                             "/etc/localtime" => "Local".to_string(),
                             v => v.to_string(),
                         };
                         return z;
                     }
-                } else if tz != "" && tz != "UTC" {
-                    if let Ok(z) = load_location(&tz, PLATFORM_ZONE_SOURCES.deref()) {
+                } else if tz != "UTC" {
+                    if let Ok(z) = load_location(tz, PLATFORM_ZONE_SOURCES.deref()) {
                         return z;
                     }
                 }
             }
             Ok(_) => {}
-            Err(_) => match load_location("localtime", &["/etc"]) {
-                Ok(mut z) => {
+            Err(_) => {
+                if let Ok(mut z) = load_location("localtime", &["/etc"]) {
                     z.name = "Local".to_string();
                     return z;
                 }
-                Err(_) => {}
-            },
+            }
         }
 
         // Fall back to UTC.
@@ -489,7 +490,7 @@ fn load_tzinfo_from_zip(zipfile: &str, name: &str) -> Result<Vec<u8>, Error> {
 
     let mut buf = vec![0u8; ZTAILSIZE];
     sys::preadn(&mut f, &mut buf, -(ZTAILSIZE as i64)).map_err(|_| Error::corrupted_zip(zipfile))?;
-    if get4(&buf) as usize != ZECHEADER {
+    if get4(&buf) != ZECHEADER {
         return Err(Error::corrupted_zip(zipfile));
     }
     let n = get2(&buf[10..]);
@@ -502,7 +503,7 @@ fn load_tzinfo_from_zip(zipfile: &str, name: &str) -> Result<Vec<u8>, Error> {
     let mut buf = buf.as_slice();
     let name = name.as_bytes();
     for _ in 0..n {
-        if get4(&buf) != ZCHEADER {
+        if get4(buf) != ZCHEADER {
             break;
         }
 
@@ -644,7 +645,7 @@ pub(crate) fn tzset(s: &str, last_tx_sec: i64, sec: i64) -> Option<(&str, isize,
     };
 
     let end_rule = match tzset_rule(s) {
-        Some((r, s)) if s.is_empty() => r,
+        Some((r, "")) => r,
         _ => return None,
     };
 
@@ -757,7 +758,7 @@ fn tzset_num(s: &str, min: isize, max: isize) -> Option<(isize, &str)> {
 
     let mut num = 0;
     for (i, c) in s.chars().enumerate() {
-        if c < '0' || c > '9' {
+        if !c.is_ascii_digit() {
             if i == 0 || num < min {
                 return None;
             }
@@ -787,7 +788,7 @@ fn tzrule_time(year: isize, r: Rule, off: isize) -> isize {
             }
             s
         }
-        RuleKind::DOY { day } => day * SECONDS_PER_DAY,
+        RuleKind::Doy { day } => day * SECONDS_PER_DAY,
         RuleKind::MonthWeekDay { day, week, mon } => {
             let m1 = (mon + 9) % 12 + 1;
             let yy0 = if mon > 2 { year } else { year - 1 };
@@ -826,7 +827,7 @@ fn tzrule_time(year: isize, r: Rule, off: isize) -> isize {
 #[derive(Debug, PartialEq, Eq)]
 pub(super) enum RuleKind {
     Julian { day: isize },
-    DOY { day: isize },
+    Doy { day: isize },
     MonthWeekDay { mon: isize, week: isize, day: isize },
 }
 
@@ -936,10 +937,10 @@ fn abs_date(abs: u64, full: bool) -> (isize, Month, isize, isize) {
 
     let mut day = yday;
     if is_leap(year) {
-        if day > 31 + 29 - 1 {
-            day -= 1;
-        } else if day == 31 + 29 - 1 {
-            return (year, Month::February, 29, yday);
+        match day.cmp(&(31 + 29 - 1)) {
+            Ordering::Equal => return (year, Month::February, 29, yday),
+            Ordering::Greater => day -= 1,
+            _ => {}
         }
     }
 
@@ -975,7 +976,7 @@ pub(super) fn tzset_rule(s: &str) -> Option<(Rule, &str)> {
         (RuleKind::MonthWeekDay { day, week, mon }, s)
     } else {
         let (day, s) = tzset_num(s, 0, 365)?;
-        (RuleKind::DOY { day }, s)
+        (RuleKind::Doy { day }, s)
     };
     let mut r: Rule = kind.into();
 

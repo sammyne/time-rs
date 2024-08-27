@@ -31,7 +31,7 @@ impl Rule {
 
     pub fn doy(day: isize, time: isize) -> Self {
         Self {
-            kind: RuleKind::DOY { day },
+            kind: RuleKind::Doy { day },
             time,
         }
     }
