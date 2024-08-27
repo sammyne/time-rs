@@ -5,7 +5,7 @@ mod internal;
 
 use export::{Defer, Testing};
 
-use crate::zoneinfo::{Rule, RuleKind};
+use crate::zoneinfo::Rule;
 use crate::{zoneinfo, Error, Location, LOCAL, UTC};
 
 #[test]
@@ -335,66 +335,72 @@ fn tzset_rule() {
         Case::none("X"),
         Case::some(
             "J10",
-            Rule {
-                kind: RuleKind::Julian,
-                day: 10,
-                time: 2 * 60 * 60,
-                ..Default::default()
-            },
+            Rule::julian(10, 2 * 60 * 60),
+            // Rule {
+            //     kind: RuleKind::Julian,
+            //     day: 10,
+            //     time: 2 * 60 * 60,
+            //     ..Default::default()
+            // },
             "",
         ),
         Case::some(
             "20",
-            Rule {
-                kind: RuleKind::DOY,
-                day: 20,
-                time: 2 * 60 * 60,
-                ..Default::default()
-            },
+            Rule::doy(20, 2 * 60 * 60),
+            // Rule {
+            //     kind: RuleKind::DOY,
+            //     day: 20,
+            //     time: 2 * 60 * 60,
+            //     ..Default::default()
+            // },
             "",
         ),
         Case::some(
             "M1.2.3",
-            Rule {
-                kind: RuleKind::MonthWeekDay,
-                mon: 1,
-                week: 2,
-                day: 3,
-                time: 2 * 60 * 60,
-            },
+            Rule::month_week_day(1, 2, 3, 2 * 60 * 60),
+            // Rule {
+            //     kind: RuleKind::MonthWeekDay,
+            //     mon: 1,
+            //     week: 2,
+            //     day: 3,
+            //     time: 2 * 60 * 60,
+            // },
             "",
         ),
         Case::some(
             "30/03:00:00",
-            Rule {
-                kind: RuleKind::DOY,
-                day: 30,
-                time: 3 * 60 * 60,
-                ..Default::default()
-            },
+            Rule::doy(30, 3 * 60 * 60),
+            // Rule {
+            //     kind: RuleKind::DOY,
+            //     day: 30,
+            //     time: 3 * 60 * 60,
+            //     ..Default::default()
+            // },
             "",
         ),
         Case::some(
             "M4.5.6/03:00:00",
-            Rule {
-                kind: RuleKind::MonthWeekDay,
-                mon: 4,
-                week: 5,
-                day: 6,
-                time: 3 * 60 * 60,
-            },
+            Rule::month_week_day(4, 5, 6, 3 * 60 * 60),
+            // Rule {
+            //     kind: RuleKind::MonthWeekDay,
+            //     mon: 4,
+            //     week: 5,
+            //     day: 6,
+            //     time: 3 * 60 * 60,
+            // },
             "",
         ),
         Case::none("M4.5.7/03:00:00"),
         Case::some(
             "M4.5.6/-04",
-            Rule {
-                kind: RuleKind::MonthWeekDay,
-                mon: 4,
-                week: 5,
-                day: 6,
-                time: -4 * 60 * 60,
-            },
+            Rule::month_week_day(4, 5, 6, -4 * 60 * 60),
+            // Rule {
+            //     kind: RuleKind::MonthWeekDay,
+            //     mon: 4,
+            //     week: 5,
+            //     day: 6,
+            //     time: -4 * 60 * 60,
+            // },
             "",
         ),
     ];
