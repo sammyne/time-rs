@@ -6,20 +6,17 @@ on:
   pull_request:
     branches: [ 'main' ]
     paths:
-    - 'benches/**'
     - 'crates/**'
     - 'examples/**'
-    - 'src/**'
-    - 'tests/**'
     - Cargo.toml
     - .github/workflows/build.yml
 
 jobs:
-  test:
+  lint-and-test:
 
     runs-on: ubuntu-latest
     container: 
-      image: rust:1.70.0-bullseye
+      image: rust:1.80.1-bookworm
 
     steps:
     - uses: actions/checkout@v3
