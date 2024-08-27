@@ -1,3 +1,4 @@
+use crate::zoneinfo::{Rule, RuleKind};
 use crate::PLATFORM_ZONE_SOURCES;
 
 lazy_static::lazy_static! {
@@ -18,4 +19,27 @@ fn renew_platform_zone_sources<T: Into<Vec<&'static str>>>(v: T) {
 
 fn recover_platform_sources() {
     renew_platform_zone_sources(ORIG_PLATFORM_ZONE_SOURCES.as_slice());
+}
+
+impl Rule {
+    pub fn julian(day: isize, time: isize) -> Self {
+        Self {
+            kind: RuleKind::Julian { day },
+            time,
+        }
+    }
+
+    pub fn doy(day: isize, time: isize) -> Self {
+        Self {
+            kind: RuleKind::DOY { day },
+            time,
+        }
+    }
+
+    pub fn month_week_day(mon: isize, week: isize, day: isize, time: isize) -> Self {
+        Self {
+            kind: RuleKind::MonthWeekDay { mon, week, day },
+            time,
+        }
+    }
 }

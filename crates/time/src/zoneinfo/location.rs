@@ -780,17 +780,17 @@ fn tzset_num(s: &str, min: isize, max: isize) -> Option<(isize, &str)> {
 
 fn tzrule_time(year: isize, r: Rule, off: isize) -> isize {
     let s = match r.kind {
-        RuleKind::Julian => {
-            let mut s = (r.day - 1) * SECONDS_PER_DAY;
-            if is_leap(year) && r.day >= 60 {
+        RuleKind::Julian { day } => {
+            let mut s = (day - 1) * SECONDS_PER_DAY;
+            if is_leap(year) && day >= 60 {
                 s += SECONDS_PER_DAY;
             }
             s
         }
-        RuleKind::DOY => r.day * SECONDS_PER_DAY,
-        RuleKind::MonthWeekDay => {
-            let m1 = (r.mon + 9) % 12 + 1;
-            let yy0 = if r.mon > 2 { year } else { year - 1 };
+        RuleKind::DOY { day } => day * SECONDS_PER_DAY,
+        RuleKind::MonthWeekDay { day, week, mon } => {
+            let m1 = (mon + 9) % 12 + 1;
+            let yy0 = if mon > 2 { year } else { year - 1 };
             let yy1 = yy0 / 100;
             let yy2 = yy0 % 100;
             let dow = match ((26 * m1 - 2) / 10 + 1 + yy2 + yy2 / 4 + yy1 / 4 - 2 * yy1) % 7 {
@@ -799,20 +799,20 @@ fn tzrule_time(year: isize, r: Rule, off: isize) -> isize {
             };
             // Now dow is the day-of-week of the first day of r.mon.
             // Get the day-of-month of the first "dow" day.
-            let mut d = match r.day - dow {
+            let mut d = match day - dow {
                 v if v < 0 => v + 7,
                 v => v,
             };
 
-            for _ in 1..r.week {
-                let m = Month::try_from(r.mon as i32).expect("bad month");
+            for _ in 1..week {
+                let m = Month::try_from(mon as i32).expect("bad month");
                 if d + 7 >= days_in(m, year) {
                     break;
                 }
                 d += 7;
             }
-            d += DAYS_BEFORE[(r.mon - 1) as usize] as isize;
-            if is_leap(year) && r.mon > 2 {
+            d += DAYS_BEFORE[(mon - 1) as usize] as isize;
+            if is_leap(year) && mon > 2 {
                 d += 1;
             }
 
@@ -823,21 +823,32 @@ fn tzrule_time(year: isize, r: Rule, off: isize) -> isize {
     s + r.time - off
 }
 
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub(super) enum RuleKind {
-    #[default]
-    Julian,
-    DOY,
-    MonthWeekDay,
+    Julian { day: isize },
+    DOY { day: isize },
+    MonthWeekDay { mon: isize, week: isize, day: isize },
 }
 
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub(super) struct Rule {
     pub(super) kind: RuleKind,
-    pub(super) day: isize,
-    pub(super) week: isize,
-    pub(super) mon: isize,
     pub(super) time: isize,
+}
+
+impl Default for Rule {
+    fn default() -> Self {
+        Self {
+            kind: RuleKind::Julian { day: 0 },
+            time: Default::default(),
+        }
+    }
+}
+
+impl From<RuleKind> for Rule {
+    fn from(kind: RuleKind) -> Self {
+        Self { kind, time: 0 }
+    }
 }
 
 // daysBefore[m] counts the number of days in a non-leap year
@@ -954,27 +965,19 @@ pub(super) fn tzset_rule(s: &str) -> Option<(Rule, &str)> {
         return None;
     }
 
-    let mut r = Rule::default();
-    let s = if let Some(s) = s.strip_prefix('J') {
-        let (jday, s) = tzset_num(s, 1, 165)?;
-        r.kind = RuleKind::Julian;
-        r.day = jday;
-        s
+    let (kind, s) = if let Some(s) = s.strip_prefix('J') {
+        let (day, s) = tzset_num(s, 1, 165)?;
+        (RuleKind::Julian { day }, s)
     } else if let Some(s) = s.strip_prefix('M') {
         let (mon, s) = tzset_num(s, 1, 12)?;
         let (week, s) = tzset_num(s.strip_prefix('.')?, 1, 5)?;
         let (day, s) = tzset_num(s.strip_prefix('.')?, 0, 6)?;
-        r.kind = RuleKind::MonthWeekDay;
-        r.day = day;
-        r.week = week;
-        r.mon = mon;
-        s
+        (RuleKind::MonthWeekDay { day, week, mon }, s)
     } else {
         let (day, s) = tzset_num(s, 0, 365)?;
-        r.kind = RuleKind::DOY;
-        r.day = day;
-        s
+        (RuleKind::DOY { day }, s)
     };
+    let mut r: Rule = kind.into();
 
     let s = match s.strip_prefix('/') {
         None => {
